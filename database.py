@@ -24,6 +24,14 @@ class Shipment:
     def to_json(self):
         return json.dumps(self, default=vars)
 
+
+class Appointment:
+    def __init__(self, date, hour):
+        self.date = date
+        self.hour = hour
+    def to_json(self):
+        return json.dumps(self, default=vars)
+
 def item_from_json(jsons):
     itemdict = json.loads(jsons)
     item = Item(itemdict['name'], itemdict['code'], itemdict['stock'], itemdict['price'])
@@ -34,13 +42,20 @@ def shipment_from_json(jsons):
     item = Shipment(itemdict['item_code'], itemdict['number'], itemdict['date_by'])
     return item
 
+def appointment_from_json(jsons):
+    appdict = json.loads(jsons)
+    app = Appointment(appdict['date'], appdict['month'])
+    return app
+
 
 class Database:
-    def __init__(self, items_filename, shipments_filename):
+    def __init__(self, items_filename, shipments_filename, appointments_filename):
         self.items_filename = items_filename
         self.shipments_filename = shipments_filename
+        self.appointments_filename = appointments_filename
         self._items_array_ = []
         self._shipments_array_ = []
+        self._appointments_array_ = []
         if os.path.isfile(items_filename):
             file_in = open(items_filename, "r")
             jsons_array = file_in.read().split("\n")
@@ -59,12 +74,31 @@ class Database:
                 item = shipment_from_json(jsons)
                 self._shipments_array_.append(item)
             file_in.close()
+        if os.path.isfile(appointments_filename):
+            file_in = open(appointments_filename, "r")
+            jsons_array = file_in.read().split("\n")
+            for jsons in jsons_array:
+                if jsons == '':
+                    continue
+                item = appointment_from_json(jsons)
+                self._appointments_array_.append(item)
+            file_in.close()
 
     def add_item(self, item):
         self._items_array_.append(item)
 
     def add_shipment(self, shipment):
         self._shipments_array_.append(shipment)
+
+    def add_appointment(self, appointment):
+        count = 0
+        for app in self._appointments_array_:
+            if app.date == appointment.date:
+                count += 1
+        if count == 20:
+            return False
+        self._appointments_array_.append(appointment)
+        return True
 
     def find_item_with_code(self, code):
         for item in self._items_array_:
@@ -89,6 +123,9 @@ class Database:
     def all_shipments(self):
         return self._shipments_array_
 
+    def all_appointments(self):
+        return self._appointments_array_
+
     def save_db(self):
         #items
         jsons_array = []
@@ -109,6 +146,15 @@ class Database:
         file_out.write(file_data)
         file_out.close()
 
+        jsons_array = []
+        for item in self._appointments_array_:
+            jsons = item.to_json()
+            jsons_array.append(jsons)
+        file_out = open(self.appointments_filename, "w")
+        file_data = "\n".join(jsons_array)
+        file_out.write(file_data)
+        file_out.close()
+
 
 
 testitem = Item("Strawberry Jam", "12345", 5, 2.99)
@@ -116,10 +162,10 @@ testitem2 = Item("Terry VI", "67890", 3, 1.99)
 testitem3 = Item("Hot Chocolate", "121212", 17, 3.49)
 item_from_json(testitem.to_json())
 
-database = Database("items.txt", "shipments.txt")
+database = Database("items.txt", "shipments.txt", "appointments.txt")
 print(database.all_items())
 database.find_item_with_code("12345").stock += 1
-database.add_shipment(Shipment("12345", "7478", "30/12/2023"))
+# database.add_shipment(Shipment("12345", "7478", "30/12/2023"))
 print(database.all_shipments())
 # database.add_item(testitem)
 # database.add_item(testitem2)
